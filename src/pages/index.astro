@@ -1,0 +1,40 @@
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Portal • Home">
+  <section class="grid gap-6">
+    <div class="card p-6 animate-fadeInUp">
+      <h1 class="text-3xl font-bold mb-2">Welcome 👋</h1>
+      <p class="text-muted">Installable PWA hosted on GitHub Pages. Local diary, offline-first, no committed binaries.</p>
+      <div class="mt-6 flex gap-3">
+        <a href="./diary" class="btn-primary">Open Diary</a>
+        <button id="installBtn" class="btn-ghost" style="display:none">Install App</button>
+      </div>
+    </div>
+
+    <div class="card p-6 animate-fadeInUp" style="animation-delay:120ms">
+      <h2 class="text-xl font-semibold mb-2">How this stays text-only</h2>
+      <ul class="list-disc pl-6 text-muted space-y-1">
+        <li>SVG icon is stored in repo</li>
+        <li>CI generates PNG icons from SVG before build</li>
+        <li>No images or binaries committed</li>
+      </ul>
+    </div>
+  </section>
+
+  <script>
+    let deferredPrompt;
+    const btn = document.getElementById("installBtn");
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btn.style.display = "inline-flex";
+    });
+    btn?.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+  </script>
+</Base>
