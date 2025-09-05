@@ -1,30 +1,17 @@
-# Design Playground
+# Portal Pro (GitHub Pages PWA)
+Neon-glass, keyboard-first, offline PWA. Markdown Diary with tags, fuzzy search, attachments, export/ZIP, and optional client-side encryption.
 
-## What’s new in v1.1
+## Dev
+npm install
+npm run dev
 
-- **Multi-select** with Shift-click and move/resize multiple at once.  
-- **Undo/Redo** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z).  
-- **Alignment tools** (align left/right/top/bottom + center).  
-- **Artboard presets** plus manual W/H and background color control.  
-- **More elements**: Rectangle, Circle, Divider.  
-- **Color pickers** for text and backgrounds; `alt` text for images.  
-- **Export Options** with PNG scale.  
-- **Share Link** (URL hash) — copy a link that restores the design when opened.  
-- **Small a11y improvements** (labels, alt, rel attributes).
+## Build
+npm run build
 
-A mini-Canva style, drag-drop web UI builder. Static, no backend.
+## Deploy
+Push to `main`. In **Settings → Pages** set **Source = GitHub Actions** (once).
 
-**Features**
-- Drag elements onto the artboard
-- Move/resize with snap-to-grid + guides
-- Edit properties (text, styles, image/link)
-- Layers panel (select, duplicate, delete, z-order)
-- Export PNG / JSON / HTML+CSS
-- Auto-save to LocalStorage; Import JSON
-
-**Local dev**
-Open `index.html` directly, or run a static server.
-
-**Deploy (GitHub Pages)**
-- Enable Pages (Actions or branch).
-- If using Actions, workflow is included at `.github/workflows/deploy.yml`.
+Tips
+- Press Ctrl/Cmd-K for the Command Palette.
+- Settings → theme, font size, language (EN/HE).
+- Diary → toggle encryption with a passphrase; data stays local.
