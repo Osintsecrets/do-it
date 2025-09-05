@@ -1,30 +1,29 @@
 ---
-const { title = "Portal", description = "A sexy, offline-capable portal with a local diary & tools." } = Astro.props;
+const { title = "Portal", description = "Neon-glass PWA with local diary & tools." } = Astro.props;
 import Nav from "../components/Nav.astro";
-const base = import.meta.env.BASE_URL;
+import CommandPalette from "../components/CommandPalette.jsx";
 ---
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#22d3ee" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <title>{title}</title><meta name="description" content={description} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600;800&display=swap" rel="stylesheet" />
-    <link rel="manifest" href={base + "manifest.webmanifest"} />
-    <link rel="icon" href={base + "icons/icon-maskable.svg"} type="image/svg+xml" />
-    <link rel="apple-touch-icon" href={base + "icons/icon-maskable.svg"} />
-    <link rel="stylesheet" href={base + "src/styles/global.css"} />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-maskable.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-maskable.svg" />
+    <link rel="stylesheet" href="/src/styles/global.css" />
   </head>
   <body class="font-body">
+    <a class="skip" href="#main">Skip to content</a>
+
     <!-- Floating neon blobs -->
     <div class="pointer-events-none fixed inset-0 -z-10">
-      <div class="blob absolute top-[-10%] left-[5%] w-[45vw] h-[45vw] rounded-full bg-neon-cyan animate-floaty"></div>
-      <div class="blob absolute top-[0%] right-[5%] w-[35vw] h-[35vw] rounded-full bg-neon-purple animate-floaty" style="animation-delay: -2s"></div>
-      <div class="blob absolute bottom-[-10%] left-[30%] w-[40vw] h-[40vw] rounded-full bg-neon-pink animate-floaty" style="animation-delay: -4s"></div>
+      <div class="absolute top-[-10%] left-[5%] w-[45vw] h-[45vw] rounded-full bg-neon-cyan blur-3xl opacity-40 animate-floaty"></div>
+      <div class="absolute top-[0%] right-[5%] w-[35vw] h-[35vw] rounded-full bg-neon-purple blur-3xl opacity-40 animate-floaty" style="animation-delay:-2s"></div>
+      <div class="absolute bottom-[-10%] left-[30%] w-[40vw] h-[40vw] rounded-full bg-neon-pink blur-3xl opacity-30 animate-floaty" style="animation-delay:-4s"></div>
     </div>
 
     <header class="container py-6">
@@ -33,28 +32,29 @@ const base = import.meta.env.BASE_URL;
         <div class="flex items-center gap-2">
           <a href="./diary" class="btn-ghost text-sm">Diary</a>
           <a href="./tools" class="btn-ghost text-sm">Tools</a>
+          <a href="./settings" class="btn-ghost text-sm">Settings</a>
           <a href="./about" class="btn-ghost text-sm">About</a>
         </div>
       </nav>
     </header>
 
-    <main class="container pb-28">
+    <main id="main" class="container pb-28">
       <slot />
     </main>
 
     <Nav />
+    <CommandPalette client:load />
 
-    <footer class="container py-10 text-center text-muted">
-      <p>Installable PWA • Offline • Text-only repo (icons generated in CI)</p>
+    <footer class="container py-10 text-center text-neutral-300">
+      <p>Installable PWA • Offline • Text-only repo (icons generated in CI) • Press <span class="kbd">Ctrl/Cmd-K</span></p>
     </footer>
 
     <script type="module">
-      // PWA update toast
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           const bar = document.createElement("div");
           bar.textContent = "Updated. Tap to reload.";
-          Object.assign(bar.style, { position: "fixed", inset: "auto 1rem 1rem 1rem", background:"#22d3ee", color:"#06131a",
+          Object.assign(bar.style, { position:"fixed", inset:"auto 1rem 1rem 1rem", background:"#22d3ee", color:"#06131a",
             padding:"0.8rem 1rem", borderRadius:"1rem", fontWeight:"700", textAlign:"center", zIndex:"9999", boxShadow:"0 10px 30px rgba(0,0,0,.3)", cursor:"pointer" });
           bar.onclick = () => location.reload();
           document.body.appendChild(bar);

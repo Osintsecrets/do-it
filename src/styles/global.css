@@ -1,24 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root { color-scheme: light dark; }
-
-html, body { height: 100%; }
-body { @apply bg-[radial-gradient(1200px_600px_at_10%_-10%,#0ea5e9,transparent),radial-gradient(1000px_500px_at_90%_10%,#a78bfa,transparent),bg-base text-neutral-100 antialiased; }
-
-.container { @apply max-w-screen-md mx-auto px-4; }
-
-.card { @apply bg-glass backdrop-blur-md rounded-3xl border border-white/10 shadow-soft; }
-
-.btn { @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2 font-semibold transition active:scale-95; }
-.btn-primary { @apply btn bg-neon-cyan text-black hover:brightness-110 shadow-glow; }
-.btn-ghost { @apply btn bg-white/5 hover:bg-white/10 border border-white/10; }
-
-.input { @apply w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 outline-none focus:ring-2 focus:ring-neon-cyan; }
-.text-muted { @apply text-neutral-300; }
-
-.blob {
-  filter: blur(40px);
-  opacity: .4;
-}
+@tailwind base; @tailwind components; @tailwind utilities;
+:root{ color-scheme: light dark; }
+@media (prefers-reduced-motion: reduce){ *{ animation: none !important; transition: none !important; } }
+html,body{ height:100%; } 
+body{ @apply bg-[radial-gradient(1200px_600px_at_10%_-10%,#0ea5e9,transparent),radial-gradient(1000px_500px_at_90%_10%,#a78bfa,transparent),bg-base text-neutral-100 antialiased; }
+.container{ @apply max-w-screen-md mx-auto px-4; }
+.card{ @apply bg-glass backdrop-blur-md rounded-3xl border border-white/10 shadow-soft; }
+.btn{ @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2 font-semibold transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan; }
+.btn-primary{ @apply btn bg-neon-cyan text-black hover:brightness-110 shadow-glow; }
+.btn-ghost{ @apply btn bg-white/5 hover:bg-white/10 border border-white/10; }
+.input{ @apply w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 outline-none focus:ring-2 focus:ring-neon-cyan; }
+.kbd{ @apply inline-block rounded border border-white/20 px-1.5 py-0.5 text-xs; }
+.skip{ position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; } .skip:focus{ left:1rem; top:1rem; width:auto; height:auto; @apply bg-neon-cyan text-black px-3 py-2 rounded-xl; }

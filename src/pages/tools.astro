@@ -9,21 +9,21 @@ import Base from "../layouts/Base.astro";
         <div class="card p-4">
           <h3 class="font-semibold mb-2">Word Counter</h3>
           <textarea id="wc" class="input min-h-[24vh]" placeholder="Paste text…"></textarea>
-          <div class="mt-2 text-sm text-muted">Words: <span id="wcout">0</span> • Chars: <span id="ccout">0</span></div>
+          <div class="mt-2 text-sm text-neutral-300">Words: <span id="wcout">0</span> • Chars: <span id="ccout">0</span></div>
         </div>
         <div class="card p-4">
           <h3 class="font-semibold mb-2">Unit: cm → inches</h3>
           <input id="cm" class="input" placeholder="Enter cm…" />
-          <div class="mt-2 text-sm text-muted">Inches: <span id="inch">0</span></div>
+          <div class="mt-2 text-sm text-neutral-300">Inches: <span id="inch">0</span></div>
         </div>
       </div>
     </div>
   </section>
 
   <script>
-    const wc = document.getElementById('wc'), wcout = document.getElementById('wcout'), ccout = document.getElementById('ccout');
-    wc?.addEventListener('input', ()=>{ const t = wc.value || ""; wcout.textContent = (t.trim().match(/\S+/g)||[]).length; ccout.textContent = t.length; });
-    const cm = document.getElementById('cm'), inch = document.getElementById('inch');
-    cm?.addEventListener('input', ()=>{ const v = parseFloat(cm.value||"0"); inch.textContent = isNaN(v) ? "0" : (v/2.54).toFixed(2); });
+    const wc=document.getElementById('wc'), wcout=document.getElementById('wcout'), ccout=document.getElementById('ccout');
+    wc?.addEventListener('input',()=>{ const t=wc.value||""; wcout.textContent=(t.trim().match(/\S+/g)||[]).length; ccout.textContent=t.length; });
+    const cm=document.getElementById('cm'), inch=document.getElementById('inch');
+    cm?.addEventListener('input',()=>{ const v=parseFloat(cm.value||"0"); inch.textContent = isNaN(v)?"0":(v/2.54).toFixed(2); });
   </script>
 </Base>

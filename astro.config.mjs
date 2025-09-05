@@ -3,7 +3,11 @@ import tailwind from "@astrojs/tailwind";
 import react from "@astrojs/react";
 import astroPWA from "@vite-pwa/astro";
 
+const base = process.env.BASE_PATH || "/";
+
 export default defineConfig({
+  site: process.env.SITE_URL || "https://example.com",
+  base,
   trailingSlash: "ignore",
   integrations: [
     tailwind(),
@@ -14,9 +18,9 @@ export default defineConfig({
       manifest: {
         name: "Portal",
         short_name: "Portal",
-        description: "A sexy, offline-capable portal with a local diary & tools.",
-        start_url: ".",
-        scope: ".",
+        description: "Neon-glass PWA with local diary, tools, and zero-backend encryption.",
+        start_url: base,
+        scope: base,
         display: "standalone",
         background_color: "#070B12",
         theme_color: "#22d3ee",
@@ -26,7 +30,11 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"]
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,woff2}"],
+        runtimeCaching: [
+          { urlPattern: ({request}) => request.destination === "image", handler: "CacheFirst", options: { cacheName: "img", expiration: { maxEntries: 60, maxAgeSeconds: 60*60*24*30 } } },
+          { urlPattern: ({url}) => url.origin === self.location.origin, handler: "StaleWhileRevalidate", options: { cacheName: "pages" } }
+        ]
       },
       devOptions: { enabled: true }
     })
