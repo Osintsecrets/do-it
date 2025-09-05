@@ -1,0 +1,51 @@
+---
+const { title = "Portal", description = "Offline-capable portal with a local diary." } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-maskable.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon-maskable.svg" />
+    <link rel="stylesheet" href="/src/styles/global.css" />
+  </head>
+  <body>
+    <header class="container py-6">
+      <nav class="flex items-center justify-between">
+        <a href="./" class="text-xl font-bold tracking-tight">Portal</a>
+        <div class="flex items-center gap-2">
+          <a href="./" class="btn-ghost text-sm">Home</a>
+          <a href="./diary" class="btn-ghost text-sm">Diary</a>
+        </div>
+      </nav>
+    </header>
+    <main class="container pb-24">
+      <slot />
+    </main>
+    <footer class="container py-10 text-center text-muted">
+      <p>Offline PWA • Text-only repo • Icons generated in CI</p>
+    </footer>
+
+    <script type="module">
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          const bar = document.createElement("div");
+          bar.textContent = "App updated. Tap to reload.";
+          Object.assign(bar.style, {
+            position: "fixed", inset: "auto 1rem 1rem 1rem",
+            background: "#0ea5e9", color: "#0b1220", padding: "0.75rem 1rem",
+            borderRadius: "0.75rem", fontWeight: "700", textAlign: "center", zIndex: "9999",
+            boxShadow: "0 10px 30px rgba(0,0,0,.2)", cursor: "pointer"
+          });
+          bar.onclick = () => location.reload();
+          document.body.appendChild(bar);
+        });
+      }
+    </script>
+  </body>
+</html>
