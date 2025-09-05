@@ -1,372 +1,627 @@
-// Design Playground core — drag, resize, props, layers, export/import
+/* globals html2canvas, COMPONENTS */
 (() => {
-  const $ = (q, p=document) => p.querySelector(q);
-  const $$ = (q, p=document) => Array.from(p.querySelectorAll(q));
-  const stage = $("#stage");
-  const palette = $("#palette");
-  const layersUl = $("#layers");
-  const propsForm = $("#props");
-  const gridInput = $("#gridSize");
-  const zoomInput = $("#zoom");
-  const snapToggle = $("#snapToggle");
-  const help = $("#help");
-  const fileOpen = $("#fileOpen");
+  const $ = sel => document.querySelector(sel);
+  const stage   = $('#stage');
+  const stageWrap = $('#stageWrap');
+  const palette = $('#palette');
+  const layers  = $('#layers');
+  const props   = $('#props');
 
-  let grid = parseInt(gridInput.value,10) || 8;
-  let zoom = (parseInt(zoomInput.value,10)||100) / 100;
-  document.documentElement.style.setProperty("--grid", grid + "px");
-  document.documentElement.style.setProperty("--zoom", zoom);
+  // Toolbar controls
+  const gridSizeInput = $('#gridSize');
+  const snapToggle    = $('#snapToggle');
+  const zoomInput     = $('#zoom');
+  const newBtn        = $('#newDoc');
+  const importBtn     = $('#importJSON');
+  const exportBtn     = $('#exportJSON');
+  const exportHTMLBtn = $('#exportHTML');
+  const exportPngBtn  = $('#exportPNG');
+  const exportOptionsBtn = $('#exportOptions');
+  const exportDialog  = $('#exportDialog');
+  const exportScale   = $('#exportScale');
+  const exportPNGApply= $('#exportPNGApply');
+  const exportClose   = $('#exportClose');
+  const helpBtn       = $('#helpBtn');
+  const helpDlg       = $('#help');
+  const helpClose     = $('#helpClose');
+  const fileOpenInput = $('#fileOpen');
+
+  const undoBtn = $('#undoBtn');
+  const redoBtn = $('#redoBtn');
+
+  const alignLeft = $('#alignLeft'), alignHCenter = $('#alignHCenter'), alignRight = $('#alignRight');
+  const alignTop  = $('#alignTop'),  alignVCenter = $('#alignVCenter'), alignBottom = $('#alignBottom');
+
+  const artboardPreset = $('#artboardPreset');
+  const stageWInput = $('#stageW');
+  const stageHInput = $('#stageH');
+  const stageBGInput= $('#stageBG');
+
+  const shareLinkBtn = $('#shareLink');
 
   // State
-  let nodes = []; // array of {id,type,x,y,w,h,z,styles, text/src/href}
-  let activeId = null;
-  const uid = () => "n" + Math.random().toString(36).slice(2,7);
+  let nodes = [];         // array of node objects
+  let selection = [];     // array of selected node ids (first = key)
+  let zoom = 1;
+  let grid = 8;
+  let isMouseDown = false;
+  let dragState = null;
 
-  // Palette render
+  // History for undo/redo
+  const history = [];
+  let historyIdx = -1;
+
+  // Helpers
+  const uid = ()=>'id'+Math.random().toString(36).slice(2,8);
+  const snap = v => snapToggle.checked ? Math.round(v / grid) * grid : v;
+  const toPx = n => (Number(n)||0)+'px';
+  const keyNode = ()=> nodes.find(n=>n.id===selection[0]);
+
+  function pushHistory() {
+    // limit history to 100 steps
+    history.splice(historyIdx+1);
+    history.push(JSON.stringify({nodes, stage: stageStyleSnapshot()}));
+    if (history.length>100) history.shift();
+    historyIdx = history.length-1;
+    localStorage.setItem('design_v1', history[historyIdx]);
+  }
+  function stageStyleSnapshot(){
+    return {
+      w: parseInt(stage.style.width||1200),
+      h: parseInt(stage.style.height||800),
+      bg: stage.style.backgroundColor || ''
+    };
+  }
+  function applyStageStyle(s){
+    stage.style.width  = toPx(s.w||1200);
+    stage.style.height = toPx(s.h||800);
+    if(s.bg) stage.style.backgroundColor = s.bg;
+    stageWInput.value = s.w||1200; stageHInput.value = s.h||800;
+    if(s.bg) stageBGInput.value = rgbToHex(getComputedStyle(stage).backgroundColor);
+  }
+
+  function rgbToHex(rgb){
+    if(!rgb) return '#0d1422';
+    const m = rgb.match(/\d+/g); if(!m) return '#0d1422';
+    const [r,g,b]=m.map(Number);
+    return '#' + [r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }
+
+  // Build palette
   function renderPalette(){
-    palette.innerHTML = "";
-    window.COMPONENTS.forEach(c=>{
-      const el = document.createElement("div");
-      el.className = "item";
+    palette.innerHTML = '';
+    COMPONENTS.forEach(c=>{
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.textContent = c.label + ' ';
+      const b = document.createElement('span');
+      b.className = 'badge';
+      b.textContent = c.type;
+      el.appendChild(b);
       el.draggable = true;
-      el.textContent = c.label;
-      const badge = document.createElement("div"); badge.className="badge"; badge.textContent = c.type;
-      el.appendChild(badge);
-      el.addEventListener("dragstart", e=>{
-        e.dataTransfer.setData("application/x-comp", JSON.stringify(c));
+      el.addEventListener('dragstart', ev=>{
+        ev.dataTransfer.setData('application/json', JSON.stringify(c));
       });
       palette.appendChild(el);
     });
   }
 
-  // Stage drag target
-  stage.addEventListener("dragover", e=> { e.preventDefault(); });
-  stage.addEventListener("drop", e=>{
-    e.preventDefault();
-    const data = e.dataTransfer.getData("application/x-comp");
-    if(!data) return;
-    const c = JSON.parse(data);
-    const rect = stage.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left)/zoom - c.w/2) / grid) * grid;
-    const y = Math.round(((e.clientY - rect.top)/zoom - c.h/2) / grid) * grid;
-    createNode(c, x, y);
-  });
+  // Rendering nodes
+  function render(){
+    stage.querySelectorAll('.node').forEach(n=>n.remove());
+    nodes.forEach(n=>{
+      const d = document.createElement('div');
+      d.className = 'node ' + (n.type==='button'?'button':'') + (n.type==='image'?' image':'') + (['rectangle','circle'].includes(n.type)?' shape':'') + (n.type==='divider'?' divider':'');
+      d.style.left = toPx(n.x);
+      d.style.top  = toPx(n.y);
+      d.style.width = toPx(n.w);
+      d.style.height= toPx(n.h);
+      if(n.bg) d.style.background = n.bg;
+      if(n.color) d.style.color = n.color;
+      if(n.radius!=null) d.style.borderRadius = toPx(n.radius);
+      if(n.shadow) d.style.boxShadow = n.shadow;
+      if(n.border) d.style.border = n.border;
+      d.dataset.id = n.id;
 
-  // Create node
-  function createNode(c, x=20, y=20){
-    const id = uid();
-    const node = {
-      id, type:c.type, x, y, w:c.w, h:c.h, z: (nodes.length ? Math.max(...nodes.map(n=>n.z||1)) + 1 : 1),
-      styles: c.styles || {}, text:c.text||"", src:c.src||"", href:c.href||""
-    };
-    nodes.push(node);
-    mountNode(node);
-    select(id);
-    saveLocal();
-  }
+      const content = document.createElement('div');
+      content.className = 'content';
 
-  // Mount DOM element
-  function mountNode(n){
-    let el = document.createElement("div");
-    el.className = "node";
-    el.dataset.id = n.id;
-    el.style.left = n.x+"px"; el.style.top = n.y+"px"; el.style.width = n.w+"px"; el.style.height = n.h+"px"; el.style.zIndex = n.z;
-    applyStyles(el, n);
+      if(n.type==='heading' || n.type==='paragraph' || n.type==='button' || n.type==='badge' || n.type==='card' || n.type==='input' || n.type==='link'){
+        const tag = (n.type==='heading'?'h2':'div');
+        const t = document.createElement(tag);
+        t.textContent = n.text||'';
+        if(n.font) t.style.fontFamily = n.font;
+        if(n.fontSize) t.style.fontSize = toPx(n.fontSize);
+        if(n.fontWeight) t.style.fontWeight = n.fontWeight;
+        if(n.type==='link'){
+          const a = document.createElement('a');
+          a.href = n.href||'#'; a.textContent = n.text||'Link';
+          a.target = '_blank'; a.rel = 'noopener noreferrer';
+          a.style.color = n.color||'#8ee7a7';
+          content.appendChild(a);
+        } else {
+          content.appendChild(t);
+        }
+        if(n.padding!=null) content.style.padding = toPx(n.padding);
+      } else if(n.type==='image'){
+        const img = document.createElement('img');
+        img.alt = n.alt||'';
+        img.src = n.src||'';
+        img.style.borderRadius = 'inherit';
+        content.appendChild(img);
+      } else if(n.type==='divider'){
+        // no inner content
+      } else {
+        // shapes / others
+        if(n.padding!=null) content.style.padding = toPx(n.padding);
+        const t = document.createElement('div');
+        t.textContent = n.text||'';
+        content.appendChild(t);
+      }
 
-    const content = document.createElement("div");
-    content.className = "content";
-    if(n.type==="image"){
-      el.classList.add("image");
-      const img = document.createElement("img"); img.src = n.src || "https://picsum.photos/600/400"; content.appendChild(img);
-    } else if (n.type==="button"){
-      el.classList.add("button"); content.textContent = n.text || "Button";
-    } else if (n.type==="link"){
-      el.classList.add("link"); const a = document.createElement("a"); a.href = n.href||"#"; a.textContent = n.text||"Link"; a.target="_blank"; content.appendChild(a);
-    } else if (n.type==="input"){
-      const input = document.createElement("input"); input.placeholder="Type…"; input.style.width="100%"; input.style.height="100%";
-      input.style.color = n.styles.color || "#eaf4ff"; input.style.background = n.styles.bg || "#0e1729"; input.style.border = n.styles.border||"1px solid #ffffff22"; input.style.borderRadius = (n.styles.radius||10)+"px"; input.style.padding = (n.styles.padding||10)+"px";
-      content.appendChild(input);
-    } else {
-      // heading, paragraph, card, badge, etc.
-      content.textContent = n.text || n.type;
-      if(n.type==="heading") content.style.fontSize = (n.styles.fontSize || 28) + "px";
-    }
-    el.appendChild(content);
+      d.appendChild(content);
 
-    // resize handles
-    ["h-tl","h-tr","h-bl","h-br"].forEach(k=>{
-      const h = document.createElement("div"); h.className = `handle ${k}`; el.appendChild(h);
+      // selection state
+      if(selection.includes(n.id)) d.classList.add('selected');
+
+      // resize handles
+      ['h-tl','h-tr','h-bl','h-br'].forEach(k=>{
+        const h = document.createElement('div');
+        h.className = 'handle '+k;
+        d.appendChild(h);
+      });
+
+      // drag/select
+      d.addEventListener('pointerdown', onNodePointerDown);
+      stage.appendChild(d);
     });
-
-    // events
-    el.addEventListener("pointerdown", onNodePointerDown);
-    stage.appendChild(el);
     renderLayers();
+    bindHandles();
   }
 
-  function applyStyles(el, n){
-    const s = n.styles || {};
-    el.style.background = s.bg || el.style.background;
-    el.style.border = s.border || "1px solid #ffffff1a";
-    el.style.borderRadius = (s.radius ?? 12) + "px";
-    el.style.boxShadow = s.shadow || "";
-    el.style.color = s.color || "#eaf4ff";
-    el.style.fontFamily = s.font || "Inter, ui-sans-serif, system-ui";
-    if(s.fontSize) el.style.fontSize = s.fontSize + "px";
-    if(s.fontWeight) el.style.fontWeight = s.fontWeight;
-    const content = el.querySelector(".content");
-    if(content) content.style.padding = (s.padding ?? 12) + "px";
-  }
-
-  // Selection
-  function select(id){
-    activeId = id;
-    $$(".node", stage).forEach(el => el.classList.toggle("selected", el.dataset.id===id));
-    renderProps();
-    renderLayers();
-  }
-  function clearSelection(){ activeId=null; $$(".node", stage).forEach(el=>el.classList.remove("selected")); renderProps(); renderLayers(); }
-
-  stage.addEventListener("pointerdown", e=>{
-    if(e.target === stage){ clearSelection(); }
-  });
-
-  // Drag / Resize
-  let dragState=null;
-  function onNodePointerDown(e){
-    const el = e.currentTarget;
-    const id = el.dataset.id;
-    select(id);
-    const n = nodes.find(n=>n.id===id);
-    const rect = el.getBoundingClientRect();
-    const isHandle = e.target.classList.contains("handle");
-    dragState = {
-      id, startX: e.clientX, startY: e.clientY,
-      origX: n.x, origY: n.y, origW: n.w, origH: n.h,
-      mode: isHandle ? e.target.classList[1] : "move"
-    };
-    el.setPointerCapture(e.pointerId);
-    el.addEventListener("pointermove", onNodePointerMove);
-    el.addEventListener("pointerup", onNodePointerUp, { once:true });
-  }
-  function onNodePointerMove(e){
-    if(!dragState) return;
-    const n = nodes.find(n=>n.id===dragState.id);
-    const dx = (e.clientX - dragState.startX)/zoom;
-    const dy = (e.clientY - dragState.startY)/zoom;
-    if(dragState.mode==="move"){
-      let nx = dragState.origX + dx;
-      let ny = dragState.origY + dy;
-      if(snapToggle.checked){ nx = Math.round(nx/grid)*grid; ny = Math.round(ny/grid)*grid; }
-      n.x = Math.max(0, nx); n.y = Math.max(0, ny);
-    } else {
-      // resize
-      let w = dragState.origW, h = dragState.origH, x = dragState.origX, y = dragState.origY;
-      if(dragState.mode==="h-br"){ w += dx; h += dy; }
-      if(dragState.mode==="h-tr"){ w += dx; h -= dy; y += dy; }
-      if(dragState.mode==="h-bl"){ w -= dx; h += dy; x += dx; }
-      if(dragState.mode==="h-tl"){ w -= dx; h -= dy; x += dx; y += dy; }
-      if(snapToggle.checked){
-        x = Math.round(x/grid)*grid; y = Math.round(y/grid)*grid;
-        w = Math.max(grid, Math.round(w/grid)*grid); h = Math.max(grid, Math.round(h/grid)*grid);
-      }
-      n.x = Math.max(0, x); n.y = Math.max(0, y); n.w = Math.max(20, w); n.h = Math.max(20, h);
-    }
-    updateNodeDom(n);
-  }
-  function onNodePointerUp(e){
-    e.currentTarget.removeEventListener("pointermove", onNodePointerMove);
-    dragState=null; saveLocal(); renderProps(); renderLayers();
-  }
-  function updateNodeDom(n){
-    const el = $(`.node[data-id="${n.id}"]`, stage);
-    if(!el) return;
-    el.style.left = n.x+"px"; el.style.top = n.y+"px"; el.style.width = n.w+"px"; el.style.height = n.h+"px"; el.style.zIndex = n.z;
-  }
-
-  // Props panel
-  function renderProps(){
-    const n = nodes.find(n=>n.id===activeId);
-    $$("input[data-prop]", propsForm).forEach(inp => {
-      const key = inp.dataset.prop;
-      if(!n){
-        inp.value = ""; inp.disabled = ["type","id"].includes(key) ? true : false;
-        return;
-      }
-      inp.disabled = false;
-      if(key==="type") inp.value = n.type;
-      else if(key==="id") inp.value = n.id;
-      else if(["x","y","w","h"].includes(key)) inp.value = n[key]??"";
-      else if(key==="text") inp.value = n.text ?? "";
-      else if(key==="src") inp.value = n.src ?? "";
-      else if(key==="href") inp.value = n.href ?? "";
-      else {
-        const s = n.styles || {};
-        if(key==="padding") inp.value = s.padding ?? 12;
-        if(key==="radius") inp.value = s.radius ?? 12;
-        if(key==="font") inp.value = s.font ?? "Inter, ui-sans-serif, system-ui";
-        if(key==="fontSize") inp.value = s.fontSize ?? (n.type==="heading"?28:16);
-        if(key==="fontWeight") inp.value = s.fontWeight ?? 600;
-        if(key==="color") inp.value = s.color ?? "#eaf4ff";
-        if(key==="bg") inp.value = s.bg ?? (n.type==="button" ? "#21d3ee" : "#101b2f99");
-        if(key==="border") inp.value = s.border ?? "1px solid #ffffff1a";
-        if(key==="shadow") inp.value = s.shadow ?? "";
-      }
-    });
-  }
-
-  propsForm.addEventListener("input",(e)=>{
-    const n = nodes.find(n=>n.id===activeId); if(!n) return;
-    const key = e.target.dataset.prop; const val = e.target.value;
-    if(["x","y","w","h"].includes(key)){ n[key]=parseInt(val||0,10); updateNodeDom(n);}
-    else if(key==="text"){ n.text = val; updateContent(n); }
-    else if(key==="src"){ n.src = val; updateContent(n); }
-    else if(key==="href"){ n.href = val; updateContent(n); }
-    else {
-      n.styles = n.styles||{};
-      if(key==="padding") n.styles.padding = parseInt(val||0,10);
-      if(key==="radius") n.styles.radius = parseInt(val||0,10);
-      if(key==="font") n.styles.font = val;
-      if(key==="fontSize") n.styles.fontSize = parseInt(val||0,10);
-      if(key==="fontWeight") n.styles.fontWeight = parseInt(val||0,10);
-      if(key==="color") n.styles.color = val;
-      if(key==="bg") n.styles.bg = val;
-      if(key==="border") n.styles.border = val;
-      if(key==="shadow") n.styles.shadow = val;
-      applyStyles($(`.node[data-id="${n.id}"]`), n);
-      updateContent(n);
-    }
-    saveLocal(); renderLayers();
-  });
-
-  function updateContent(n){
-    const el = $(`.node[data-id="${n.id}"]`); if(!el) return;
-    const content = $(".content", el);
-    if(n.type==="image"){ const img = $("img", content); img.src = n.src || "https://picsum.photos/600/400"; }
-    else if(n.type==="link"){ const a = $("a", content); a.textContent=n.text||"Link"; a.href=n.href||"#"; }
-    else if(n.type==="input"){ /* nothing */ }
-    else { content.textContent = n.text || n.type; if(n.styles?.fontSize) content.style.fontSize = n.styles.fontSize+"px"; }
-  }
-
-  // Layers
   function renderLayers(){
-    layersUl.innerHTML = "";
-    nodes.slice().sort((a,b)=> (b.z||0)-(a.z||0)).forEach(n=>{
-      const li = document.createElement("li");
-      li.className = (n.id===activeId?"active":"");
-      const name = document.createElement("span"); name.textContent = `${n.type} (${n.id})`;
-      const controls = document.createElement("span");
-      const sel = document.createElement("button"); sel.textContent="✤"; sel.title="Select"; sel.onclick=()=>select(n.id);
-      const up = document.createElement("button"); up.textContent="▲"; up.title="Front"; up.onclick=()=>{ n.z=(n.z||1)+1; updateNodeDom(n); saveLocal(); renderLayers(); };
-      const dn = document.createElement("button"); dn.textContent="▼"; dn.title="Back"; dn.onclick=()=>{ n.z=Math.max(1,(n.z||1)-1); updateNodeDom(n); saveLocal(); renderLayers(); };
-      const del = document.createElement("button"); del.textContent="✖"; del.title="Delete"; del.onclick=()=>removeNode(n.id);
-      [sel,up,dn,del].forEach(b=>{ b.style.marginLeft="6px"; b.style.background="#0d1626"; b.style.color="#e1f0ff"; b.style.border="1px solid #ffffff1a"; b.style.borderRadius="8px"; padding=6; b.style.cursor="pointer"; });
-      controls.append(sel, up, dn, del);
-      li.append(name, controls);
-      layersUl.appendChild(li);
+    layers.innerHTML = '';
+    nodes
+      .slice()
+      .sort((a,b)=> (a.z||0)-(b.z||0))
+      .forEach(n=>{
+        const li = document.createElement('li');
+        li.dataset.id = n.id;
+        const span = document.createElement('span');
+        span.textContent = `${n.type} (${n.id})`;
+        li.appendChild(span);
+        if(selection.includes(n.id)) li.classList.add('active');
+        li.addEventListener('click', ()=>{
+          selection = [n.id];
+          updateProps();
+          render();
+        });
+        layers.appendChild(li);
+      });
+  }
+
+  function addNodeFromComponent(comp, x, y){
+    const n = { id:uid(), type:comp.type, x:snap(x), y:snap(y), w:comp.w||160, h:comp.h||48,
+      text:comp.text||'', src:comp.src||'', alt:comp.alt||'', href:comp.href||'',
+      bg:comp.bg||'', color:comp.color||'', radius:comp.radius??12, padding:comp.padding??12,
+      border:comp.border||'', shadow:comp.shadow||'', font:comp.font||'', fontSize:comp.fontSize||'', fontWeight:comp.fontWeight||'' };
+    nodes.push(n);
+    selection = [n.id];
+    pushHistory();
+    render();
+    updateProps();
+  }
+
+  // Stage events
+  stage.addEventListener('dragover', e=> e.preventDefault());
+  stage.addEventListener('drop', e=>{
+    e.preventDefault();
+    const comp = JSON.parse(e.dataTransfer.getData('application/json')||'{}');
+    const rect = stage.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    if(comp.type) addNodeFromComponent(comp, x, y);
+  });
+
+  stage.addEventListener('pointerdown', e=>{
+    if(e.target===stage){ selection = []; updateProps(); render(); }
+  });
+
+  function nodeById(id){ return nodes.find(n=>n.id===id); }
+
+  function onNodePointerDown(e){
+    const nodeEl = e.currentTarget;
+    const id = nodeEl.dataset.id;
+
+    // Multi-select with Shift
+    if(e.shiftKey){
+      if(selection.includes(id)) selection = selection.filter(s=>s!==id);
+      else selection = [...selection, id];
+    } else {
+      // single-select (unless already part of selection)
+      if(!selection.includes(id)) selection = [id];
+    }
+    updateProps(); render();
+
+    const rect = stage.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    const init = selection.map(sid=>{
+      const n = nodeById(sid);
+      return { id:sid, x:n.x, y:n.y, w:n.w, h:n.h };
     });
+    isMouseDown = true;
+    dragState = { startX, startY, init, mode:'move' };
+
+    function onMove(ev){
+      if(!isMouseDown) return;
+      const dx = (ev.clientX - startX)/zoom;
+      const dy = (ev.clientY - startY)/zoom;
+      selection.forEach((sid, idx)=>{
+        const n = nodeById(sid);
+        n.x = snap(init[idx].x + dx);
+        n.y = snap(init[idx].y + dy);
+      });
+      render();
+      ev.preventDefault();
+    }
+    function onUp(){
+      isMouseDown = false;
+      dragState = null;
+      pushHistory();
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   }
 
-  function removeNode(id){
-    nodes = nodes.filter(n=>n.id!==id);
-    const el = $(`.node[data-id="${id}"]`); el?.remove();
-    if(activeId===id) activeId=null;
-    renderLayers(); renderProps(); saveLocal();
-  }
-
-  // Toolbar
-  $("#newDoc").onclick = ()=>{ if(confirm("Clear the canvas?")){ nodes=[]; stage.innerHTML=""; activeId=null; renderLayers(); renderProps(); saveLocal(); } };
-  $("#exportJSON").onclick = ()=> download("layout.json", JSON.stringify({v:1, nodes}, null, 2));
-  $("#importJSON").onclick = ()=> fileOpen.click();
-  fileOpen.onchange = async (e)=>{ const f = e.target.files[0]; if(!f) return; const text = await f.text(); try{
-    const data = JSON.parse(text); if(!data.nodes) throw 0;
-    nodes = data.nodes; stage.innerHTML=""; nodes.forEach(mountNode); renderLayers(); renderProps(); saveLocal();
-  } catch{ alert("Invalid JSON."); } e.target.value=null; };
-
-  $("#exportPNG").onclick = async ()=>{
-    const pngStage = stage.cloneNode(true);
-    // remove handles before snapshot
-    $$(".handle", pngStage).forEach(h=>h.remove());
-    await html2canvas(pngStage, {backgroundColor:null, scale:2}).then(canvas=>{
-      canvas.toBlob(b=>{
-        const url = URL.createObjectURL(b); const a = document.createElement("a");
-        a.href = url; a.download = "design.png"; a.click(); URL.revokeObjectURL(url);
+  function bindHandles(){
+    stage.querySelectorAll('.node').forEach(nodeEl=>{
+      const id = nodeEl.dataset.id;
+      nodeEl.querySelectorAll('.handle').forEach(h=>{
+        h.addEventListener('pointerdown', e=>{
+          e.stopPropagation();
+          const rect = stage.getBoundingClientRect();
+          const startX = e.clientX, startY = e.clientY;
+          const init = selection.map(sid=>{
+            const n = nodeById(sid);
+            return { id:sid, x:n.x, y:n.y, w:n.w, h:n.h };
+          });
+          const corner = [...h.classList].find(c=>c.startsWith('h-')).slice(2);
+          function onMove(ev){
+            const dx = (ev.clientX - startX)/zoom;
+            const dy = (ev.clientY - startY)/zoom;
+            selection.forEach((sid, idx)=>{
+              const n = nodeById(sid);
+              let {x,y,w,h} = init[idx];
+              if(corner.includes('r')) w = snap(Math.max(10, w + dx));
+              if(corner.includes('l')) { x = snap(x + dx); w = snap(Math.max(10, w - dx)); }
+              if(corner.includes('b')) h = snap(Math.max(10, h + dy));
+              if(corner.includes('t')) { y = snap(y + dy); h = snap(Math.max(10, h - dy)); }
+              Object.assign(n, {x,y,w,h});
+            });
+            render();
+          }
+          function onUp(){
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            pushHistory();
+          }
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+        });
       });
     });
-  };
+  }
 
-  $("#exportHTML").onclick = ()=>{
-    const { html, css } = toHTMLCSS(nodes);
-    const blob = new Blob([`<!-- HTML -->\n${html}\n\n/* CSS */\n${css}\n`], {type:"text/plain"});
-    const url = URL.createObjectURL(blob); const a = document.createElement("a");
-    a.href=url; a.download="design.htmlcss.txt"; a.click(); URL.revokeObjectURL(url);
-  };
+  // Props panel binding
+  props.addEventListener('input', e=>{
+    const el = e.target;
+    const prop = el.dataset.prop;
+    if(!prop || selection.length===0) return;
+    selection.forEach(id=>{
+      const n = nodeById(id);
+      let val = el.value;
+      if(['x','y','w','h','padding','radius','fontSize','fontWeight'].includes(prop)) val = Number(val||0);
+      if(prop==='bg' || prop==='color'){
+        // color inputs might be hex; keep as is
+      }
+      n[prop] = val;
+    });
+    render();
+    pushHistory();
+  });
 
-  $("#helpBtn").onclick = ()=> help.showModal();
-  $("#helpClose").onclick = ()=> help.close();
+  function updateProps(){
+    const many = selection.length>1;
+    // Only show first selected details in the disabled ID/Type, others are edited collectively
+    const first = keyNode();
+    props.querySelectorAll('[data-prop]').forEach(inp=>{
+      const p = inp.dataset.prop;
+      if(!first){ inp.value = ''; return; }
+      if(['x','y','w','h','padding','radius','fontSize','fontWeight'].includes(p)) inp.value = Number(first[p]||0);
+      else inp.value = first[p] || '';
+    });
+  }
 
-  gridInput.oninput = (e)=>{ grid = Math.max(2, parseInt(e.target.value||8,10)); document.documentElement.style.setProperty("--grid", grid+"px"); };
-  zoomInput.oninput = (e)=>{ zoom = (parseInt(e.target.value||100,10))/100; document.documentElement.style.setProperty("--zoom", zoom); };
-
-  $("#bringFwd").onclick = ()=>{ const n = nodes.find(n=>n.id===activeId); if(!n) return; n.z=(n.z||1)+1; updateNodeDom(n); saveLocal(); renderLayers(); };
-  $("#sendBack").onclick = ()=>{ const n = nodes.find(n=>n.id===activeId); if(!n) return; n.z=Math.max(1,(n.z||1)-1); updateNodeDom(n); saveLocal(); renderLayers(); };
-  $("#duplicate").onclick = ()=>{ const n = nodes.find(n=>n.id===activeId); if(!n) return; const copy = JSON.parse(JSON.stringify(n)); copy.id=uid(); copy.x+=16; copy.y+=16; copy.z=(n.z||1)+1; nodes.push(copy); mountNode(copy); select(copy.id); saveLocal(); };
-  $("#remove").onclick = ()=>{ if(activeId) removeNode(activeId); };
-
-  // Keyboard shortcuts
-  window.addEventListener("keydown", (e)=>{
-    const n = nodes.find(n=>n.id===activeId); const step = e.shiftKey ? 10 : 1;
-    if(e.key==="Escape"){ clearSelection(); }
-    if(!n) return;
-    if(e.key==="Delete" || e.key==="Backspace"){ removeNode(n.id); }
-    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==="d"){ e.preventDefault(); $("#duplicate").click(); }
-    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)){
-      e.preventDefault();
-      if(e.key==="ArrowUp") n.y = Math.max(0, n.y - step);
-      if(e.key==="ArrowDown") n.y = n.y + step;
-      if(e.key==="ArrowLeft") n.x = Math.max(0, n.x - step);
-      if(e.key==="ArrowRight") n.x = n.x + step;
-      if(snapToggle.checked){ n.x = Math.round(n.x/grid)*grid; n.y = Math.round(n.y/grid)*grid; }
-      updateNodeDom(n); renderProps(); saveLocal();
+  // Toolbar actions
+  newBtn.addEventListener('click', ()=>{
+    if(confirm('Clear current design?')) {
+      nodes = []; selection=[]; pushHistory(); render(); updateProps();
     }
   });
 
-  // Persistence
-  function saveLocal(){ localStorage.setItem("design-playground", JSON.stringify({v:1,nodes})); }
-  function loadLocal(){ try{ const s = JSON.parse(localStorage.getItem("design-playground")||"{}"); if(s.nodes){ nodes=s.nodes; nodes.forEach(mountNode);} }catch{} }
+  importBtn.addEventListener('click', ()=> fileOpenInput.click());
+  fileOpenInput.addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    try{
+      const txt = await f.text();
+      const parsed = JSON.parse(txt);
+      if(!Array.isArray(parsed.nodes)) throw new Error('Invalid: no nodes[]');
+      nodes = parsed.nodes;
+      applyStageStyle(parsed.stage||{});
+      selection=[]; render(); updateProps(); pushHistory();
+    }catch(err){
+      alert('Invalid JSON: '+err.message);
+    } finally {
+      fileOpenInput.value = '';
+    }
+  });
 
-  function download(name, text){ const url = URL.createObjectURL(new Blob([text], {type:"application/json"})); const a = document.createElement("a"); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url); }
+  exportBtn.addEventListener('click', ()=>{
+    const data = currentJSON();
+    download('design.json', JSON.stringify(data, null, 2));
+  });
 
-  // Export HTML/CSS generator
-  function toHTMLCSS(ns){
-    const itemCss = [];
-    const items = ns.map(n=>{
-      const sel = `#${n.id}`;
-      const s = n.styles||{};
-      itemCss.push(`${sel}{position:absolute;left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px;z-index:${n.z||1};`+
-        (s.bg?`background:${s.bg};`:"")+(s.border?`border:${s.border};`:"")+`border-radius:${(s.radius??12)}px;`+
-        (s.shadow?`box-shadow:${s.shadow};`:"")+`color:${s.color||"#eaf4ff"};font:${(s.fontWeight||600)} ${(s.fontSize||16)}px ${s.font||"Inter, sans-serif"};}`+
-        `${sel} .content{padding:${(s.padding??12)}px;}`);
-      let inner = "";
-      if(n.type==="image"){ inner = `<img src="${n.src||"https://picsum.photos/600/400"}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`; }
-      else if(n.type==="link"){ inner = `<a href="${n.href||"#"}" target="_blank">${escapeHtml(n.text||"Link")}</a>`; }
-      else if(n.type==="input"){ inner = `<input placeholder="Type…" style="width:100%;height:100%;background:${s.bg||"#0e1729"};color:${s.color||"#eaf4ff"};border:${s.border||"1px solid #ffffff22"};border-radius:${(s.radius||10)}px;padding:${(s.padding||10)}px">`; }
-      else { inner = escapeHtml(n.text||n.type); }
-      return `<div id="${n.id}" class="node"><div class="content">${inner}</div></div>`;
-    }).join("\n");
-    const html = `<div class="artboard">\n${items}\n</div>`;
-    const css = `.artboard{position:relative;width:1200px;height:800px;background:#0d1422;border-radius:20px}\n`+ itemCss.join("\n");
+  exportHTMLBtn.addEventListener('click', ()=>{
+    const {html, css} = exportHTML();
+    const bundle = `<!-- Exported from Design Playground -->
+<style>
+${css}
+</style>
+<div class="export-stage">
+${html}
+</div>`;
+    copyToClipboard(bundle);
+    alert('HTML+CSS copied to clipboard!');
+  });
+
+  exportPngBtn.addEventListener('click', ()=> {
+    exportDialog.showModal();
+  });
+  exportOptionsBtn.addEventListener('click', ()=> exportDialog.showModal());
+  exportPNGApply.addEventListener('click', async ()=>{
+    await exportPNG(Number(exportScale.value||1));
+  });
+  exportClose.addEventListener('click', ()=> exportDialog.close());
+
+  helpBtn.addEventListener('click', ()=> helpDlg.showModal());
+  helpClose.addEventListener('click', ()=> helpDlg.close());
+
+  undoBtn.addEventListener('click', ()=> undo());
+  redoBtn.addEventListener('click', ()=> redo());
+
+  // Align tools (relative to first selected node as key)
+  function doAlign(axis, mode){
+    if(selection.length<2) return;
+    const base = keyNode();
+    selection.slice(1).forEach(id=>{
+      const n = nodeById(id);
+      if(axis==='x'){
+        if(mode==='left') n.x = base.x;
+        if(mode==='center') n.x = Math.round(base.x + (base.w - n.w)/2);
+        if(mode==='right') n.x = base.x + base.w - n.w;
+      } else {
+        if(mode==='top') n.y = base.y;
+        if(mode==='center') n.y = Math.round(base.y + (base.h - n.h)/2);
+        if(mode==='bottom') n.y = base.y + base.h - n.h;
+      }
+    });
+    render(); pushHistory();
+  }
+  alignLeft.addEventListener('click', ()=>doAlign('x','left'));
+  alignHCenter.addEventListener('click', ()=>doAlign('x','center'));
+  alignRight.addEventListener('click', ()=>doAlign('x','right'));
+  alignTop.addEventListener('click', ()=>doAlign('y','top'));
+  alignVCenter.addEventListener('click', ()=>doAlign('y','center'));
+  alignBottom.addEventListener('click', ()=>doAlign('y','bottom'));
+
+  // Artboard size + background
+  function applyStageDims(w,h){
+    stage.style.width = toPx(w); stage.style.height = toPx(h);
+    stageWInput.value = w; stageHInput.value = h;
+  }
+  artboardPreset.addEventListener('change', ()=>{
+    const v = artboardPreset.value;
+    if(v==='custom') return;
+    const [w,h]=v.split('x').map(Number);
+    applyStageDims(w,h); pushHistory();
+  });
+  stageWInput.addEventListener('input', ()=>{ applyStageDims(Number(stageWInput.value||1200), Number(stageHInput.value||800)); pushHistory(); });
+  stageHInput.addEventListener('input', ()=>{ applyStageDims(Number(stageWInput.value||1200), Number(stageHInput.value||800)); pushHistory(); });
+  stageBGInput.addEventListener('input', ()=>{ stage.style.backgroundColor = stageBGInput.value; pushHistory(); });
+
+  // Grid + zoom
+  gridSizeInput.addEventListener('input', ()=>{ grid = Math.max(2, Number(gridSizeInput.value||8)); document.documentElement.style.setProperty('--grid', grid+'px'); });
+  zoomInput.addEventListener('input', ()=>{ zoom = Number(zoomInput.value)/100; document.documentElement.style.setProperty('--zoom', zoom.toString()); });
+
+  // Z-index helpers
+  function bringForward(){ selection.forEach(id=>{ const n=nodeById(id); n.z=(n.z||0)+1; }); render(); pushHistory(); }
+  function sendBackward(){ selection.forEach(id=>{ const n=nodeById(id); n.z=(n.z||0)-1; }); render(); pushHistory(); }
+  $('#bringFwd').addEventListener('click', bringForward);
+  $('#sendBack').addEventListener('click', sendBackward);
+
+  // Duplicate / Remove
+  $('#duplicate').addEventListener('click', ()=>{
+    const clones=[];
+    selection.forEach(id=>{
+      const n = nodeById(id);
+      const c = JSON.parse(JSON.stringify(n));
+      c.id = uid(); c.x = snap(n.x + 16); c.y = snap(n.y + 16);
+      nodes.push(c); clones.push(c.id);
+    });
+    selection = clones;
+    render(); pushHistory(); updateProps();
+  });
+  $('#remove').addEventListener('click', ()=>{
+    nodes = nodes.filter(n=>!selection.includes(n.id));
+    selection=[]; render(); pushHistory(); updateProps();
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ selection=[]; render(); updateProps(); }
+    if((e.key==='Delete'||e.key==='Backspace') && selection.length){ $('#remove').click(); }
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='d'){ e.preventDefault(); $('#duplicate').click(); }
+    if((e.ctrlKey||e.metaKey) && !e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
+    if((e.ctrlKey||e.metaKey) && e.shiftKey && e.key.toLowerCase()==='z'){ e.preventDefault(); redo(); }
+    // Arrow nudging (Shift for 10px)
+    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key) && selection.length){
+      const delta = e.shiftKey ? 10 : 1;
+      selection.forEach(id=>{
+        const n = nodeById(id);
+        if(e.key==='ArrowLeft')  n.x = snap(n.x - delta);
+        if(e.key==='ArrowRight') n.x = snap(n.x + delta);
+        if(e.key==='ArrowUp')    n.y = snap(n.y - delta);
+        if(e.key==='ArrowDown')  n.y = snap(n.y + delta);
+      });
+      render(); pushHistory();
+    }
+  });
+
+  // Undo/Redo
+  function loadSnapshot(s){
+    try{
+      const parsed = JSON.parse(s);
+      nodes = parsed.nodes||[];
+      applyStageStyle(parsed.stage||{});
+      selection=[]; render(); updateProps();
+    }catch(err){ console.warn('Bad snapshot', err); }
+  }
+  function undo(){
+    if(historyIdx>0){ historyIdx--; loadSnapshot(history[historyIdx]); localStorage.setItem('design_v1', history[historyIdx]); }
+  }
+  function redo(){
+    if(historyIdx < history.length-1){ historyIdx++; loadSnapshot(history[historyIdx]); localStorage.setItem('design_v1', history[historyIdx]); }
+  }
+
+  // Export helpers
+  function exportPNG(scale=1){
+    const stageClone = stage.cloneNode(true);
+    stageClone.querySelectorAll('.handle').forEach(h=>h.remove());
+    stageClone.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
+    stageClone.style.transform = 'scale(1)';
+    stageClone.style.transformOrigin = 'top left';
+
+    const tmp = document.createElement('div');
+    tmp.style.position='fixed'; tmp.style.left='-99999px'; tmp.appendChild(stageClone);
+    document.body.appendChild(tmp);
+
+    return html2canvas(stageClone,{ backgroundColor: getComputedStyle(stage).backgroundColor, scale })
+      .then(canvas=>{
+        canvas.toBlob(blob=>{
+          download('design.png', blob);
+          tmp.remove();
+          exportDialog.close();
+        });
+      });
+  }
+
+  function exportHTML(){
+    // absolute layout export with minimal CSS reset; responsive via container scale utility
+    const css = `.export-stage{position:relative;width:${parseInt(stage.style.width||1200)}px;height:${parseInt(stage.style.height||800)}px;background:${getComputedStyle(stage).backgroundColor};border-radius:20px;overflow:hidden}
+.export-stage .node{position:absolute;border-radius:12px}
+.export-stage .content{padding:12px}
+@media(max-width: 768px){ .export-stage{width:100%; height:auto; aspect-ratio:${parseInt(stage.style.width||1200)}/${parseInt(stage.style.height||800)} }}`;
+    const html = nodes.map(n=>{
+      const style = [
+        `left:${n.x}px`,`top:${n.y}px`,`width:${n.w}px`,`height:${n.h}px`,
+        n.bg?`background:${n.bg}`:'', n.color?`color:${n.color}`:'', n.radius!=null?`border-radius:${n.radius}px`:'',
+        n.shadow?`box-shadow:${n.shadow}`:'', n.border?`border:${n.border}`:''
+      ].filter(Boolean).join(';');
+
+      if(n.type==='image'){
+        return `<div class="node image" style="${style}"><img src="${n.src||''}" alt="${(n.alt||'').replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit"/></div>`;
+      }
+      if(n.type==='link'){
+        return `<div class="node link" style="${style}"><a href="${n.href||'#'}" target="_blank" rel="noopener noreferrer" style="display:block;color:${n.color||'#8ee7a7'};padding:12px">${n.text||'Link'}</a></div>`;
+      }
+      if(n.type==='divider'){
+        return `<div class="node divider" style="${style}"></div>`;
+      }
+      const textStyles = [
+        n.font?`font-family:${n.font}`:'', n.fontSize?`font-size:${n.fontSize}px`:'', n.fontWeight?`font-weight:${n.fontWeight}`:''
+      ].filter(Boolean).join(';');
+      return `<div class="node ${n.type}" style="${style}"><div class="content" style="${n.padding!=null?`padding:${n.padding}px`:''}"><div style="${textStyles}">${(n.text||'')}</div></div></div>`;
+    }).join('\n');
+
     return { html, css };
   }
-  function escapeHtml(s){ return (s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+
+  // Download helper
+  function download(name, data){
+    const a = document.createElement('a');
+    if(data instanceof Blob){ a.href = URL.createObjectURL(data); }
+    else { a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(data); }
+    a.download = name; a.click();
+    setTimeout(()=>{ if(a.href.startsWith('blob:')) URL.revokeObjectURL(a.href); }, 5000);
+  }
+  function copyToClipboard(text){
+    navigator.clipboard.writeText(text).catch(()=> {
+      const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+    });
+  }
+
+  function currentJSON(){
+    return { nodes, stage: { w: parseInt(stage.style.width||1200), h: parseInt(stage.style.height||800), bg: getComputedStyle(stage).backgroundColor } };
+  }
+
+  // Share link: base64 JSON in URL hash
+  function makeShareLink(){
+    const json = currentJSON();
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(json))));
+    return location.origin + location.pathname + '#d=' + b64;
+  }
+  shareLinkBtn.addEventListener('click', ()=>{
+    const url = makeShareLink();
+    copyToClipboard(url);
+    alert('Share link copied to clipboard!');
+  });
+
+  // Load from hash if present
+  function tryLoadFromHash(){
+    const m = location.hash.match(/#d=([^&]+)/);
+    if(!m) return false;
+    try{
+      const json = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+      nodes = json.nodes||[];
+      applyStageStyle(json.stage||{});
+      selection=[]; render(); updateProps(); pushHistory();
+      return true;
+    }catch(e){ console.warn('Bad hash data'); return false; }
+  }
 
   // Init
-  renderPalette();
-  loadLocal();
+  function init(){
+    grid = Number(gridSizeInput.value||8);
+    zoom = Number(zoomInput.value)/100;
+    document.documentElement.style.setProperty('--grid', grid+'px');
+    document.documentElement.style.setProperty('--zoom', zoom.toString());
 
-  // Click to select from stage
-  stage.addEventListener("click", e=>{
-    const nodeEl = e.target.closest(".node"); if(!nodeEl) return;
-    select(nodeEl.dataset.id);
-  });
+    renderPalette();
+
+    // restore from localStorage or hash
+    if(!tryLoadFromHash()){
+      const saved = localStorage.getItem('design_v1');
+      if(saved){ loadSnapshot(saved); historyIdx = history.length-1; }
+      else { pushHistory(); render(); }
+    }
+
+    // stage defaults to inputs
+    stageWInput.value = parseInt(stage.style.width||1200);
+    stageHInput.value = parseInt(stage.style.height||800);
+    stageBGInput.value = rgbToHex(getComputedStyle(stage).backgroundColor);
+  }
+
+  init();
 })();
