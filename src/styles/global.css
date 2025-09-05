@@ -3,12 +3,22 @@
 @tailwind utilities;
 
 :root { color-scheme: light dark; }
+
 html, body { height: 100%; }
-body { @apply bg-neutral-950 text-neutral-100 antialiased; }
+body { @apply bg-[radial-gradient(1200px_600px_at_10%_-10%,#0ea5e9,transparent),radial-gradient(1000px_500px_at_90%_10%,#a78bfa,transparent),bg-base text-neutral-100 antialiased; }
+
 .container { @apply max-w-screen-md mx-auto px-4; }
-.card { @apply bg-neutral-900/70 backdrop-blur rounded-2xl shadow-soft border border-neutral-800; }
-.btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-semibold transition active:scale-95; }
-.btn-primary { @apply btn bg-brand-600 text-white hover:bg-cyan-500; }
-.btn-ghost { @apply btn bg-neutral-900 hover:bg-neutral-800 border border-neutral-800; }
-.input { @apply w-full rounded-xl bg-neutral-900 border border-neutral-800 px-3 py-2 outline-none focus:ring-2 focus:ring-brand-600; }
-.text-muted { @apply text-neutral-400; }
+
+.card { @apply bg-glass backdrop-blur-md rounded-3xl border border-white/10 shadow-soft; }
+
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2 font-semibold transition active:scale-95; }
+.btn-primary { @apply btn bg-neon-cyan text-black hover:brightness-110 shadow-glow; }
+.btn-ghost { @apply btn bg-white/5 hover:bg-white/10 border border-white/10; }
+
+.input { @apply w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 outline-none focus:ring-2 focus:ring-neon-cyan; }
+.text-muted { @apply text-neutral-300; }
+
+.blob {
+  filter: blur(40px);
+  opacity: .4;
+}

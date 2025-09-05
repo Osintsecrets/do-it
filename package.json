@@ -1,6 +1,6 @@
 {
-  "name": "portal-pwa-textonly",
-  "version": "0.1.0",
+  "name": "yaron-portal-pwa",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {

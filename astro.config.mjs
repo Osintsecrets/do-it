@@ -12,14 +12,14 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icons/icon-maskable.svg"],
       manifest: {
-        name: "Portal PWA",
+        name: "Portal",
         short_name: "Portal",
-        description: "Offline-capable portal with a local diary.",
+        description: "A sexy, offline-capable portal with a local diary & tools.",
         start_url: ".",
         scope: ".",
         display: "standalone",
-        background_color: "#0a0a0a",
-        theme_color: "#0ea5e9",
+        background_color: "#070B12",
+        theme_color: "#22d3ee",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
           { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }

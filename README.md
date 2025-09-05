@@ -1,8 +1,5 @@
-# Portal PWA (Text-only repo)
-- Installable PWA on GitHub Pages
-- Local-only Diary (IndexedDB/Dexie)
-- No committed binaries: PNG icons generated in CI from SVG
-- Mobile-first Tailwind UI
+# Portal (GitHub Pages PWA)
+Sexy, installable PWA with neon gradients, glassmorphism, and buttery motion. Local-only Diary (IndexedDB).
 
 ## Dev
 npm install
@@ -12,4 +9,4 @@ npm run dev
 npm run build
 
 ## Deploy
-Push to `main` → GitHub Actions builds & deploys to Pages.
+Push to `main`. Ensure **Settings → Pages → Source = GitHub Actions**.

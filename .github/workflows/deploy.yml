@@ -1,4 +1,4 @@
-name: Build & Deploy (Text-only)
+name: Build & Deploy (GitHub Pages)
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
           cache: "npm"
       - name: Install
         run: npm ci
-      - name: Generate icons from SVG (text-only → PNG at build time)
+      - name: Generate icons from SVG
         run: npm run gen:icons
       - name: Build
         run: npm run build

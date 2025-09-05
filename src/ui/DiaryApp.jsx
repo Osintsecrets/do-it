@@ -10,7 +10,7 @@ export default function DiaryApp(){
 
   const refresh=async()=> setEntries(await db.entries.orderBy("createdAt").reverse().toArray());
   useEffect(()=>{refresh();},[]);
-  useEffect(()=>{const h=setTimeout(async()=>{ if(!title && !body) return; if(selectedId){ await db.entries.update(selectedId,{title,body,tags:toTags(tags),updatedAt:Date.now()}); refresh();}},500); return()=>clearTimeout(h);},[title,body,tags,selectedId]);
+  useEffect(()=>{const h=setTimeout(async()=>{ if(!title && !body) return; if(selectedId){ await db.entries.update(selectedId,{title,body,tags:toTags(tags),updatedAt:Date.now()}); refresh();}},450); return()=>clearTimeout(h);},[title,body,tags,selectedId]);
 
   async function createNew(){ const id=await db.entries.add({createdAt:Date.now(),updatedAt:Date.now(),title:title||"Untitled",body:body||"",tags:toTags(tags)}); setSelectedId(id); refresh(); }
   function selectEntry(e){ setSelectedId(e.id); setTitle(e.title); setBody(e.body); setTags((e.tags||[]).join(", ")); }
@@ -23,23 +23,22 @@ export default function DiaryApp(){
   return (
     <div className="grid gap-4 md:grid-cols-[280px_1fr]">
       <aside className="card p-4 h-max sticky top-4">
-        <input className="input mb-3" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)} />
+        <input className="input mb-2" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)} />
         <input className="input mb-3" placeholder="Filter by tag…" value={tagQ} onChange={e=>setTagQ(e.target.value)} />
-        <button className="btn-primary w-full" onClick={createNew}>New Entry</button>
-        <hr className="my-4 border-neutral-800" />
+        <button className="btn-primary w-full mb-4" onClick={createNew}>New Entry</button>
         <div className="max-h-[50vh] overflow-auto pr-1 space-y-2">
-          {filtered().map(e=> (
-            <button key={e.id} onClick={()=>selectEntry(e)} className={`w-full text-left p-3 rounded-xl border transition ${selectedId===e.id?"border-brand-600 bg-neutral-900":"border-neutral-800 hover:bg-neutral-900"}`}>
+          {filtered().map(e=>(
+            <button key={e.id} onClick={()=>selectEntry(e)} className={`w-full text-left p-3 rounded-2xl border transition ${selectedId===e.id?"border-white/30 bg-white/10":"border-white/10 hover:bg-white/5"}`}>
               <div className="font-semibold">{e.title||"Untitled"}</div>
-              <div className="text-muted text-sm">{fmt(e.updatedAt)}</div>
-              {e.tags?.length ? <div className="mt-1 text-xs text-neutral-400">#{e.tags.join(" #")}</div> : null}
+              <div className="text-muted text-xs">{fmt(e.updatedAt)}</div>
+              {e.tags?.length ? <div className="mt-1 text-xs text-neutral-300">#{e.tags.join(" #")}</div> : null}
             </button>
           ))}
           {!filtered().length && <div className="text-muted text-sm">No entries yet.</div>}
         </div>
       </aside>
 
-      <section className="card p-4 animate-fadeInUp">
+      <section className="card p-4 animate-fadeUp">
         <input className="input text-xl font-semibold mb-3" placeholder="Title…" value={title} onChange={e=>setTitle(e.target.value)} />
         <textarea className="input min-h-[40vh] mb-3" placeholder="Write your thoughts…" value={body} onChange={e=>setBody(e.target.value)} />
         <input className="input mb-3" placeholder="tags, comma,separated" value={tags} onChange={e=>setTags(e.target.value)} />
@@ -50,7 +49,7 @@ export default function DiaryApp(){
           <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={e=>e.target.files[0]&&importJSON(e.target.files[0])} />
           <button className="btn-ghost" onClick={()=>fileRef.current?.click()}>Import</button>
         </div>
-        <p className="text-xs text-neutral-500 mt-2">Autosaves every ~0.5s when editing an existing note.</p>
+        <p className="text-xs text-neutral-300 mt-2">Autosaves every ~0.45s when editing an existing note.</p>
       </section>
     </div>
   );
