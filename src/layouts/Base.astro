@@ -1,47 +1,61 @@
 ---
-const { title = "Portal", description = "Offline-capable portal with a local diary." } = Astro.props;
+const { title = "Portal", description = "A sexy, offline-capable portal with a local diary & tools." } = Astro.props;
+import Nav from "../components/Nav.astro";
+const base = import.meta.env.BASE_URL;
 ---
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="theme-color" content="#22d3ee" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icons/icon-maskable.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/icons/icon-maskable.svg" />
-    <link rel="stylesheet" href="/src/styles/global.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600;800&display=swap" rel="stylesheet" />
+    <link rel="manifest" href={base + "manifest.webmanifest"} />
+    <link rel="icon" href={base + "icons/icon-maskable.svg"} type="image/svg+xml" />
+    <link rel="apple-touch-icon" href={base + "icons/icon-maskable.svg"} />
+    <link rel="stylesheet" href={base + "src/styles/global.css"} />
   </head>
-  <body>
+  <body class="font-body">
+    <!-- Floating neon blobs -->
+    <div class="pointer-events-none fixed inset-0 -z-10">
+      <div class="blob absolute top-[-10%] left-[5%] w-[45vw] h-[45vw] rounded-full bg-neon-cyan animate-floaty"></div>
+      <div class="blob absolute top-[0%] right-[5%] w-[35vw] h-[35vw] rounded-full bg-neon-purple animate-floaty" style="animation-delay: -2s"></div>
+      <div class="blob absolute bottom-[-10%] left-[30%] w-[40vw] h-[40vw] rounded-full bg-neon-pink animate-floaty" style="animation-delay: -4s"></div>
+    </div>
+
     <header class="container py-6">
       <nav class="flex items-center justify-between">
-        <a href="./" class="text-xl font-bold tracking-tight">Portal</a>
+        <a href="./" class="text-2xl md:text-3xl font-display font-extrabold tracking-tight drop-shadow-[0_2px_20px_rgba(34,211,238,.35)]">Portal</a>
         <div class="flex items-center gap-2">
-          <a href="./" class="btn-ghost text-sm">Home</a>
           <a href="./diary" class="btn-ghost text-sm">Diary</a>
+          <a href="./tools" class="btn-ghost text-sm">Tools</a>
+          <a href="./about" class="btn-ghost text-sm">About</a>
         </div>
       </nav>
     </header>
-    <main class="container pb-24">
+
+    <main class="container pb-28">
       <slot />
     </main>
+
+    <Nav />
+
     <footer class="container py-10 text-center text-muted">
-      <p>Offline PWA • Text-only repo • Icons generated in CI</p>
+      <p>Installable PWA • Offline • Text-only repo (icons generated in CI)</p>
     </footer>
 
     <script type="module">
+      // PWA update toast
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           const bar = document.createElement("div");
-          bar.textContent = "App updated. Tap to reload.";
-          Object.assign(bar.style, {
-            position: "fixed", inset: "auto 1rem 1rem 1rem",
-            background: "#0ea5e9", color: "#0b1220", padding: "0.75rem 1rem",
-            borderRadius: "0.75rem", fontWeight: "700", textAlign: "center", zIndex: "9999",
-            boxShadow: "0 10px 30px rgba(0,0,0,.2)", cursor: "pointer"
-          });
+          bar.textContent = "Updated. Tap to reload.";
+          Object.assign(bar.style, { position: "fixed", inset: "auto 1rem 1rem 1rem", background:"#22d3ee", color:"#06131a",
+            padding:"0.8rem 1rem", borderRadius:"1rem", fontWeight:"700", textAlign:"center", zIndex:"9999", boxShadow:"0 10px 30px rgba(0,0,0,.3)", cursor:"pointer" });
           bar.onclick = () => location.reload();
           document.body.appendChild(bar);
         });

@@ -4,4 +4,3 @@ dist
 .DS_Store
 public/icons/icon-192.png
 public/icons/icon-512.png
-.astro
