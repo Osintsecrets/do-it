@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Design Playground</title>
+  <meta name="color-scheme" content="dark light"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <!-- html2canvas via CDN (text-only, no binaries committed) -->
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script defer src="components.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Design Playground</div>
+    <div class="toolbar">
+      <button id="newDoc" title="New (clear)">New</button>
+      <button id="importJSON">Import JSON</button>
+      <button id="exportJSON">Export JSON</button>
+      <button id="exportHTML">Copy HTML+CSS</button>
+      <button id="exportPNG">Export PNG</button>
+      <span class="divider"></span>
+      <label>Grid <input id="gridSize" type="number" min="2" value="8"/></label>
+      <label><input id="snapToggle" type="checkbox" checked/> Snap</label>
+      <label>Zoom <input id="zoom" type="range" min="50" max="200" value="100"/></label>
+      <button id="helpBtn" title="Shortcuts">?</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <aside class="left">
+      <h3>Elements</h3>
+      <div id="palette" class="palette"></div>
+    </aside>
+
+    <section class="center">
+      <div id="stageWrap" class="stage-wrap">
+        <div id="stage" class="stage" aria-label="Artboard" tabindex="0"></div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <h3>Properties</h3>
+      <form id="props" class="props" autocomplete="off">
+        <div class="group">
+          <label>Type <input data-prop="type" disabled/></label>
+          <label>ID <input data-prop="id" disabled/></label>
+          <label>Text <input data-prop="text"/></label>
+          <label>Image src <input data-prop="src" placeholder="https://..."/></label>
+          <label>Link href <input data-prop="href" placeholder="https://..."/></label>
+        </div>
+        <div class="group grid2">
+          <label>X <input data-prop="x" type="number"/></label>
+          <label>Y <input data-prop="y" type="number"/></label>
+          <label>W <input data-prop="w" type="number"/></label>
+          <label>H <input data-prop="h" type="number"/></label>
+        </div>
+        <div class="group grid2">
+          <label>Padding <input data-prop="padding" type="number"/></label>
+          <label>Radius <input data-prop="radius" type="number"/></label>
+          <label>Border <input data-prop="border" type="text" placeholder="1px solid #fff2"/></label>
+          <label>Shadow <input data-prop="shadow" type="text" placeholder="0 10px 30px #0004"/></label>
+        </div>
+        <div class="group grid2">
+          <label>Font <input data-prop="font" placeholder="Inter, sans-serif"/></label>
+          <label>Size <input data-prop="fontSize" type="number" placeholder="16"/></label>
+          <label>Weight <input data-prop="fontWeight" type="number" placeholder="600"/></label>
+          <label>Color <input data-prop="color" placeholder="#fff"/></label>
+          <label>BG <input data-prop="bg" placeholder="#111a"/></label>
+        </div>
+        <div class="group grid2">
+          <button type="button" id="bringFwd">Bring Front</button>
+          <button type="button" id="sendBack">Send Back</button>
+          <button type="button" id="duplicate">Duplicate</button>
+          <button type="button" id="remove">Delete</button>
+        </div>
+      </form>
+
+      <div class="layers">
+        <h3>Layers</h3>
+        <ul id="layers"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="help">
+    <h3>Shortcuts</h3>
+    <ul>
+      <li><b>Esc</b> – Clear selection</li>
+      <li><b>Del / Backspace</b> – Delete selection</li>
+      <li><b>Ctrl/Cmd + D</b> – Duplicate</li>
+      <li><b>Arrows</b> – Nudge 1px (hold Shift for 10)</li>
+    </ul>
+    <button id="helpClose">Close</button>
+  </dialog>
+  <input id="fileOpen" type="file" accept="application/json" class="hidden"/>
+</body>
+</html>

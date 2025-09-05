@@ -1,17 +1,17 @@
-# Portal Pro (GitHub Pages PWA)
-Neon-glass, keyboard-first, offline PWA. Markdown Diary with tags, fuzzy search, attachments, export/ZIP, and optional client-side encryption.
+# Design Playground
+A mini-Canva style, drag-drop web UI builder. Static, no backend.
 
-## Dev
-npm install
-npm run dev
+**Features**
+- Drag elements onto the artboard
+- Move/resize with snap-to-grid + guides
+- Edit properties (text, styles, image/link)
+- Layers panel (select, duplicate, delete, z-order)
+- Export PNG / JSON / HTML+CSS
+- Auto-save to LocalStorage; Import JSON
 
-## Build
-npm run build
+**Local dev**
+Open `index.html` directly, or run a static server.
 
-## Deploy
-Push to `main`. In **Settings → Pages** set **Source = GitHub Actions** (once).
-
-Tips
-- Press Ctrl/Cmd-K for the Command Palette.
-- Settings → theme, font size, language (EN/HE).
-- Diary → toggle encryption with a passphrase; data stays local.
+**Deploy (GitHub Pages)**
+- Enable Pages (Actions or branch).
+- If using Actions, workflow is included at `.github/workflows/deploy.yml`.
