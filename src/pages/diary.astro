@@ -2,11 +2,11 @@
 import Base from "../layouts/Base.astro";
 import DiaryApp from "../ui/DiaryApp.jsx";
 ---
-<Base title="Portal • Diary" description="Offline local diary with search, tags, backups.">
+<Base title="Portal • Diary" description="Markdown diary with tags, fuzzy search, encryption, and attachments.">
   <section class="grid gap-6">
     <div class="card p-5 animate-fadeUp">
       <h1 class="text-2xl font-display font-extrabold mb-1">Diary</h1>
-      <p class="text-muted">Saved locally on this device. Export/Import JSON to move between devices.</p>
+      <p class="text-neutral-300">Private, offline-first. Optional client-side encryption.</p>
     </div>
     <DiaryApp client:load />
   </section>
