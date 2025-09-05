@@ -4,18 +4,27 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
 }
 *{box-sizing:border-box}
-body{margin:0;background:
-  radial-gradient(1200px 600px at 10% -10%, #0ea5e933, transparent),
-  radial-gradient(1000px 500px at 90% 10%, #a78bfa33, transparent),
-  var(--bg); color:#e8eef6}
+body{
+  margin:0;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #0ea5e933, transparent),
+    radial-gradient(1000px 500px at 90% 10%, #a78bfa33, transparent),
+    var(--bg);
+  color:#e8eef6
+}
 .hidden{display:none}
 .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
   padding:10px 16px;background:#0b131fd9;backdrop-filter:saturate(1.2) blur(8px);border-bottom:1px solid #ffffff1a}
 .brand{font-weight:800;letter-spacing:.3px}
-.toolbar{display:flex;gap:8px;align-items:center}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .toolbar .divider{width:1px;height:22px;background:#ffffff22;margin:0 4px}
-.toolbar button, .toolbar input{background:#121c2d;border:1px solid #ffffff22;color:#cfe7ff;border-radius:10px;padding:6px 10px}
+.toolbar button, .toolbar input, .toolbar select, .toolbar label.inline input{
+  background:#121c2d;border:1px solid #ffffff22;color:#cfe7ff;border-radius:10px;padding:6px 10px
+}
 .toolbar button:hover{background:#16243b}
+.toolbar label.inline{display:flex;align-items:center;gap:6px;font-size:12px;color:#cfe7ff}
+.align-group>button{padding:4px 8px;border-radius:8px}
+
 .main{display:grid;grid-template-columns:260px 1fr 300px;gap:12px; padding:12px; height:calc(100dvh - 62px)}
 .left,.right{min-height:0; overflow:auto}
 .left h3,.right h3{margin:8px 0 8px 0;font-size:14px;color:#d7e6ff}
@@ -38,11 +47,14 @@ body{margin:0;background:
 .node.image{background:transparent;border:none}
 .node.image img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
 .node.link a{display:block;color:#0b0;text-decoration:underline;padding:12px}
+.node.shape{background:#ffffff10}
+.node.shape.circle{border-radius:50%}
+.node.divider{height:2px;background:#ffffff26;border:none;border-radius:1px}
 .props{display:grid;gap:8px}
 .group{border:1px solid #ffffff1a;border-radius:12px;padding:8px;background:#0e1729}
 .group.grid2{display:grid; grid-template-columns:1fr 1fr; gap:6px}
 .group label{display:flex;flex-direction:column;font-size:12px;color:#9fb3ca;gap:4px}
-.group input{background:#0d1626;border:1px solid #ffffff1a;color:#e1f0ff;border-radius:8px;padding:6px 8px}
+.group input, .group select{background:#0d1626;border:1px solid #ffffff1a;color:#e1f0ff;border-radius:8px;padding:6px 8px}
 .layers{margin-top:12px}
 .layers ul{list-style:none;margin:0;padding:0; display:flex; flex-direction:column; gap:6px}
 .layers li{padding:8px;border-radius:10px;border:1px solid #ffffff1a;background:#0f1a2d; display:flex;align-items:center;justify-content:space-between}
@@ -55,3 +67,6 @@ body{margin:0;background:
 
 /* palette badges */
 .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#ffffff14;margin-top:6px;font-size:11px;color:#b9d0ea}
+
+/* dialogs */
+dialog{border:1px solid #ffffff22;border-radius:12px;background:#0c1321;color:#dbeaff;padding:16px}
